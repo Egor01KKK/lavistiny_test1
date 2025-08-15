@@ -1,17 +1,28 @@
-import type { Item } from './types';
-export function productLdJson(item: Item){
-  return {
-    '@context': 'https://schema.org/',
+// lib/seo.ts
+import type { Product } from '@/lib/sheets';
+
+export function productLdJson(p: Product) {
+  const base = process.env.SITE_URL || 'http://localhost:3000';
+
+  const json: any = {
+    '@context': 'https://schema.org',
     '@type': 'Product',
-    name: item.name,
-    sku: item.sku,
-    description: item.description,
-    image: item.images,
-    offers: {
-      '@type': 'Offer',
-      price: item.price,
-      priceCurrency: 'RUB',
-      url: `${process.env.SITE_URL}/product/${item.slug}`
-    }
+    name: p.name,
+    url: `${base}/product/${p.slug}`,
+    image: p.images && p.images.length ? p.images : undefined,
+    sku: p.sku || undefined,
+    description: p.description || undefined,
   };
+
+  // Включаем оффер только если есть числовая цена
+  if (typeof p.price === 'number') {
+    json.offers = {
+      '@type': 'Offer',
+      priceCurrency: 'RUB',
+      price: p.price,
+      availability: 'http://schema.org/InStock',
+    };
+  }
+
+  return json;
 }
