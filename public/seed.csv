@@ -1,0 +1,5 @@
+name,sku,description,price,images,ozon_url,wb_url,category,collection,color,material,bestseller
+"Серьги Daphne",LVST-E-012,"Лёгкие лаконичные серьги из серебра с зеркальной полировкой.",4900,"1.jpg|2.jpg",https://www.ozon.ru/,,серьги,Eclipse,серебро,серебро 925,true
+"Кольцо Bloom",LVST-R-101,"Тонкое кольцо с микрофацетами. Идеально для слоения.",4200,"1.jpg|2.jpg|3.jpg",,https://www.wildberries.ru/,кольца,Eclipse,серебро,серебро 925,false
+"Колье Orbit",LVST-N-055,"Акуратная цепь с микро-шайбами.",5200,"1.jpg",https://www.ozon.ru/,,колье,Orbit,серебро,серебро 925,false
+"Браслет Mini Chain",LVST-B-003,"Мини-цепь для ежедневной носки.",3100,"1.jpg|2.jpg",,https://www.wildberries.ru/,браслеты,Orbit,серебро,серебро 925,true
