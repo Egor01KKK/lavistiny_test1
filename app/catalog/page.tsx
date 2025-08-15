@@ -1,90 +1,83 @@
-// app/catalog/page.tsx
-import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
-import Filters from '@/components/Filters';
-import { getAllProducts, type Product } from '@/lib/sheets';
-import { apply } from '@/lib/filters';
+import { getAllProducts } from '@/lib/sheets';
 
 export const revalidate = 3600;
 
-// — утилита: приводим `string | string[] | undefined` к `string | undefined`
-function one(v: string | string[] | undefined): string | undefined {
-  return Array.isArray(v) ? v[0] : v;
-}
-
-// — утилита: получаем уникальные значения по ключу
-function uniqBy<K extends keyof Product>(items: Product[], key: K): string[] {
-  return Array.from(
-    new Set(
-      items
-        .map((p) => (p[key] as unknown as string) || '')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    )
-  );
-}
-
-type CatalogSearch = {
-  category?: string | string[];
-  material?: string | string[];
-  color?: string | string[];
-  collection?: string | string[];
-  page?: string | string[];
-};
+type SearchParams = Record<string, string | string[] | undefined>;
+const pick = (v: string | string[] | undefined) =>
+  Array.isArray(v) ? v[0] : v ?? '';
 
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: CatalogSearch;
+  searchParams?: SearchParams;
 }) {
-  // все товары
-  const all = await getAllProducts();
+  const items = await getAllProducts();
 
-  // нормализуем query
-  const query = {
-    category: one(searchParams?.category),
-    material: one(searchParams?.material),
-    color: one(searchParams?.color),
-    collection: one(searchParams?.collection),
-  };
+  // Текущие параметры
+  const category = pick(searchParams?.category);
+  const pageParam = pick(searchParams?.page);
 
-  // фильтрация — гарантируем, что всегда массив
-  const filtered: Product[] = (apply(all, query) ?? []) as Product[];
+  // Фильтрация ТОЛЬКО по категории (как в финале)
+  const filtered = category
+    ? items.filter((p) => p.category === category)
+    : items;
 
-  // постранично
+  // Уникальные категории для селекта
+  const categories = Array.from(
+    new Set(items.map((p) => p.category).filter(Boolean) as string[])
+  ).sort((a, b) => a.localeCompare(b, 'ru'));
+
+  // Пагинация
   const perPage = 12;
-  const page = Number(one(searchParams?.page)) || 1;
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const page = Math.min(
+    Math.max(1, Number(pageParam || '1') || 1),
+    totalPages
+  );
   const start = (page - 1) * perPage;
   const end = start + perPage;
   const pageItems = filtered.slice(start, end);
 
-  // списки уникальных значений для фильтров (всегда массивы!)
-  const safeUnique = {
-    category: uniqBy(all, 'category'),
-    collection: uniqBy(all, 'collection'),
-    material: uniqBy(all, 'material'),
-    color: uniqBy(all, 'color'),
-  };
-
-  // вспомогательно — собираем ссылку c сохранением текущих фильтров
-  const buildLink = (n: number) => {
-    const params = new URLSearchParams();
-    if (query.category) params.set('category', query.category);
-    if (query.material) params.set('material', query.material);
-    if (query.color) params.set('color', query.color);
-    if (query.collection) params.set('collection', query.collection);
-    params.set('page', String(n));
-    return `/catalog?${params.toString()}`;
-  };
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      {/* Фильтры: всегда получат массивы, так что .map не упадёт */}
-      <Filters unique={safeUnique} />
+      {/* Шапка секции */}
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <h1 className="text-3xl md:text-4xl font-semibold">Каталог</h1>
+
+        {/* Один селект «Категория» справа */}
+        <div className="min-w-[220px] relative inline-block">
+          <select
+            id="cat-select"
+            defaultValue={category}
+            className="appearance-none bg-white rounded-2xl h-12 pl-4 pr-9 border border-base-line text-lg shadow-sm"
+          >
+            <option value="">{'Все'}</option>
+            {categories.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          {/* стрелочка */}
+          <svg
+            viewBox="0 0 24 24"
+            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600"
+          >
+            <path
+              d="M6 9l6 6 6-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      </div>
 
       {/* Сетка товаров */}
-      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-20">
         {pageItems.map((p) => (
           <ProductCard key={p.sku} product={p} />
         ))}
@@ -92,22 +85,44 @@ export default async function CatalogPage({
 
       {/* Пагинация */}
       {totalPages > 1 && (
-        <div className="mt-10 flex justify-center gap-2 text-sm">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <Link
-              key={n}
-              href={buildLink(n)}
-              className={`rounded-md px-3 py-2 border ${
-                n === page
-                  ? 'bg-black text-white border-black'
-                  : 'border-base-line hover:bg-zinc-50'
-              }`}
-            >
-              {n}
-            </Link>
-          ))}
+        <div className="mt-10 flex justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => {
+            const params = new URLSearchParams();
+            if (category) params.set('category', category);
+            params.set('page', String(n));
+            return (
+              <a
+                key={n}
+                href={`/catalog?${params.toString()}`}
+                className={`px-3 py-1 rounded-lg border border-base-line ${
+                  n === page ? 'bg-black text-white' : 'hover:bg-zinc-100'
+                }`}
+              >
+                {n}
+              </a>
+            );
+          })}
         </div>
       )}
+
+      {/* Маленький скрипт: на изменение селекта меняем query и сбрасываем page */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+          (function(){
+            var s = document.getElementById('cat-select');
+            if(!s) return;
+            s.addEventListener('change', function () {
+              var u = new URL(window.location.href);
+              var v = s.value;
+              if (v) u.searchParams.set('category', v);
+              else u.searchParams.delete('category');
+              u.searchParams.delete('page');
+              window.location.href = u.toString();
+            });
+          })();`,
+        }}
+      />
     </div>
   );
 }
