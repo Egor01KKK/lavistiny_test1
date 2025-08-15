@@ -5,6 +5,10 @@ import OneFilter from '@/components/OneFilter';
 
 export const revalidate = 3600;
 
+// ⬇️ helper: берём первую строку, если пришёл массив
+const one = (v: string | string[] | undefined) =>
+  Array.isArray(v) ? v[0] : v;
+
 export default async function CatalogPage({
   searchParams,
 }: {
@@ -13,44 +17,37 @@ export default async function CatalogPage({
   const items = await getAllProducts();
   const unique = buildFilters(items);
 
-  const page = Number(searchParams.page || 1);
+  // ⬇️ страница тоже через one()
+  const page = Number(one(searchParams.page) ?? 1);
   const perPage = 12;
 
+  // ⬇️ все параметры к string | undefined
   const filtered = apply(items, {
-    category: searchParams.category,
-    material: searchParams.material,
-    color: searchParams.color,
-    collection: searchParams.collection,
-    sort: (searchParams.sort as any) ?? 'new',
+    category:  one(searchParams.category),
+    material:  one(searchParams.material),
+    color:     one(searchParams.color),
+    collection: one(searchParams.collection),
+    sort: (one(searchParams.sort) as any) ?? 'new',
   });
 
   const { items: pageItems, pages } = paginate(filtered, page, perPage);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      {/* Заголовок + ОДИН фильтр справа */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-semibold text-4xl sm:text-4xl md:text-5xl">
-          Каталог
-        </h1>
-
-        {unique.category?.length ? (
-          <OneFilter
-            options={unique.category}
-            param="category"
-            placeholder="Все категории"
-          />
-        ) : null}
+      {/* заголовок + одиночный фильтр справа */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Каталог</h1>
+        <OneFilter options={unique.categories} param="category" />
       </div>
 
-      {/* Карточки */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+      {/* сетка карточек */}
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
         {pageItems.map((p) => (
           <ProductCard key={p.sku} product={p} />
         ))}
       </div>
 
-      {/* Пагинация */}
+      {/* пагинация */}
       <nav className="mt-12 flex justify-center gap-2">
         {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
           <a
