@@ -192,10 +192,12 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out.length ? out : [[]];
 }
 function withGhosts<T>(arr: T[], size: number): (T | null)[] {
-  const res = [...arr];
+  // массив теперь строго типизирован как (T | null)[]
+  const res: (T | null)[] = [...arr] as (T | null)[];
   while (res.length < size) res.push(null);
   return res;
 }
+
 function mod(n: number, m: number) {
   return ((n % m) + m) % m;
 }
